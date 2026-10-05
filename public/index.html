@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CoinPulse - Live crypto market tracker</title>
+  <meta name="description" content="Live cryptocurrency prices, market heatmap, top gainers and losers, updated every minute." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23F5B73B'/%3E%3Cpath d='M5 18h5l3-8 5 14 3-9 2 3h4' fill='none' stroke='%230B1220' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+
+  <!-- Apply saved theme before first paint (prevents a flash) -->
+  <script>
+    try { document.documentElement.dataset.theme = localStorage.getItem('cp.theme') || 'dark'; } catch (e) {}
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind (CDN build - no install step needed for the class project) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'] },
+          colors: {
+            bg: 'var(--bg)', surface: 'var(--surface)', raised: 'var(--raised)',
+            line: 'var(--line)', ink: 'var(--ink)', muted: 'var(--muted)',
+            brand: 'var(--brand)', up: 'var(--up)', down: 'var(--down)'
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+
+<body class="bg-bg text-ink font-sans antialiased">
+  <a href="#markets" class="skip-link">Skip to markets</a>
+
+  <!-- ============ HEADER ============ -->
+  <header class="glass sticky top-0 z-40 border-b border-line">
+    <div class="wrap flex h-16 items-center gap-3 sm:gap-6">
+      <a href="/" class="flex items-center gap-2.5 font-extrabold tracking-tight text-lg" aria-label="CoinPulse home">
+        <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="9" fill="var(--brand)" />
+          <path d="M5 18h5l3-8 5 14 3-9 2 3h4" fill="none" stroke="#0B1220" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span>CoinPulse</span>
+      </a>
+
+      <nav class="hidden md:flex items-center gap-1 text-sm font-semibold text-muted" aria-label="Sections">
+        <a class="nav-link" href="#heatmap">Heatmap</a>
+        <a class="nav-link" href="#movers">Movers</a>
+        <a class="nav-link" href="#markets">Markets</a>
+      </nav>
+
+      <div class="ml-auto flex items-center gap-2 sm:gap-3">
+        <div class="search hidden sm:flex">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="searchInput" type="search" placeholder="Search coins" autocomplete="off" aria-label="Search coins" />
+          <kbd>/</kbd>
+        </div>
+
+        <label class="sr-only" for="currencySelect">Currency</label>
+        <select id="currencySelect" class="select">
+          <option value="usd">USD</option>
+          <option value="eur">EUR</option>
+          <option value="gbp">GBP</option>
+          <option value="pkr">PKR</option>
+          <option value="inr">INR</option>
+          <option value="aed">AED</option>
+        </select>
+
+        <button id="themeToggle" class="icon-btn" aria-label="Switch colour theme" title="Switch colour theme">
+          <svg class="theme-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <svg class="theme-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Live ticker -->
+    <div class="ticker" aria-hidden="true">
+      <div class="ticker-track" id="tickerTrack"></div>
+    </div>
+  </header>
+
+  <main class="wrap pb-16">
+
+    <!-- ============ OVERVIEW ============ -->
+    <section class="pt-8 sm:pt-12" aria-labelledby="pageTitle">
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 id="pageTitle" class="text-3xl sm:text-5xl font-extrabold tracking-tight">Crypto market today</h1>
+          <p class="mt-3 text-muted text-base sm:text-lg max-w-xl">
+            The whole market is worth <strong id="heroCap" class="text-ink tabular">-</strong>
+            <span id="heroChg" class="pill align-middle ml-1">-</span>
+            <span class="text-muted">over the last 24 hours.</span>
+          </p>
+        </div>
+
+        <div class="live-card" role="status" aria-live="polite">
+          <span class="live-dot" id="liveDot"></span>
+          <div class="leading-tight">
+            <div class="text-sm font-semibold" id="liveText">Connecting...</div>
+            <div class="text-xs text-muted">Next refresh in <span id="refreshIn" class="tabular">60</span>s</div>
+          </div>
+          <button id="refreshBtn" class="icon-btn ml-2" aria-label="Refresh now" title="Refresh now">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="errorBanner" class="error-banner hidden" role="alert">
+        <span id="errorText">Could not load market data.</span>
+        <button id="retryBtn" class="btn-ghost">Try again</button>
+      </div>
+
+      <!-- Stats bar -->
+      <div class="stats mt-8">
+        <div class="stat">
+          <div class="stat-label">Market cap</div>
+          <div class="stat-value tabular" id="statCap">-</div>
+          <div id="statCapChg" class="stat-sub">-</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">24h volume</div>
+          <div class="stat-value tabular" id="statVol">-</div>
+          <div class="stat-sub text-muted"><span id="statCoins" class="tabular">-</span> coins tracked</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Bitcoin dominance</div>
+          <div class="stat-value tabular" id="statBtc">-</div>
+          <div class="dom-bar" aria-hidden="true">
+            <span id="domBtc" style="width:0%"></span><span id="domEth" style="width:0%"></span><span id="domOther" style="width:0%"></span>
+          </div>
+          <div class="dom-legend text-muted"><i class="d1"></i>BTC <i class="d2"></i>ETH <i class="d3"></i>Others</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Fear &amp; Greed</div>
+          <div class="stat-value tabular"><span id="fngValue">-</span><span class="text-base font-semibold text-muted ml-1.5" id="fngLabel"></span></div>
+          <div class="fng-bar" aria-hidden="true"><span id="fngMark"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ HEATMAP ============ -->
+    <section id="heatmap" class="pt-12 scroll-mt-24" aria-labelledby="heatTitle">
+      <div class="flex flex-wrap items-end justify-between gap-2 mb-4">
+        <div>
+          <h2 id="heatTitle" class="section-title">Market heatmap</h2>
+          <p class="text-sm text-muted mt-1">Tile size shows market cap. Colour shows the 24h move. Stablecoins are hidden.</p>
+        </div>
+        <div class="heat-legend" aria-hidden="true">
+          <span>-6%</span><i></i><span>0</span><i class="g"></i><span>+6%</span>
+        </div>
+      </div>
+      <div id="heatmap-box" class="heatmap" aria-label="Heatmap of the largest cryptocurrencies"></div>
+    </section>
+
+    <!-- ============ MOVERS ============ -->
+    <section id="movers" class="pt-12 scroll-mt-24" aria-labelledby="moversTitle">
+      <h2 id="moversTitle" class="section-title mb-4">Movers</h2>
+      <div class="grid gap-4 lg:grid-cols-3">
+        <div class="panel">
+          <h3 class="panel-title">Top gainers <span>24h</span></h3>
+          <ul id="listGainers" class="mover-list"></ul>
+        </div>
+        <div class="panel">
+          <h3 class="panel-title">Top losers <span>24h</span></h3>
+          <ul id="listLosers" class="mover-list"></ul>
+        </div>
+        <div class="panel">
+          <h3 class="panel-title">Trending searches <span>now</span></h3>
+          <ul id="listTrending" class="mover-list"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ MARKETS TABLE ============ -->
+    <section id="markets" class="pt-12 scroll-mt-24" aria-labelledby="marketsTitle">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h2 id="marketsTitle" class="section-title">Markets</h2>
+
+        <div class="tabs" role="tablist" aria-label="Filter markets">
+          <button class="tab is-active" role="tab" data-tab="all" aria-selected="true">All</button>
+          <button class="tab" role="tab" data-tab="gainers" aria-selected="false">Gainers</button>
+          <button class="tab" role="tab" data-tab="losers" aria-selected="false">Losers</button>
+          <button class="tab" role="tab" data-tab="watch" aria-selected="false">Watchlist <span id="watchCount" class="tab-count">0</span></button>
+        </div>
+      </div>
+
+      <!-- mobile search -->
+      <div class="search sm:hidden mb-3">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="searchInputMobile" type="search" placeholder="Search coins" autocomplete="off" aria-label="Search coins" />
+      </div>
+
+      <div class="table-card">
+        <div class="overflow-x-auto">
+          <table class="market-table" id="marketTable">
+            <thead>
+              <tr>
+                <th class="w-10"><span class="sr-only">Watchlist</span></th>
+                <th class="sortable text-left" data-sort="rank" aria-sort="ascending"><button>#</button></th>
+                <th class="sortable text-left" data-sort="name"><button>Coin</button></th>
+                <th class="sortable text-right" data-sort="price"><button>Price</button></th>
+                <th class="sortable text-right hidden sm:table-cell" data-sort="h1"><button>1h</button></th>
+                <th class="sortable text-right" data-sort="h24"><button>24h</button></th>
+                <th class="sortable text-right hidden md:table-cell" data-sort="d7"><button>7d</button></th>
+                <th class="sortable text-right hidden lg:table-cell" data-sort="volume"><button>24h volume</button></th>
+                <th class="sortable text-right hidden md:table-cell" data-sort="mcap"><button>Market cap</button></th>
+                <th class="text-right hidden lg:table-cell pr-5">Last 7 days</th>
+              </tr>
+            </thead>
+            <tbody id="marketBody"></tbody>
+          </table>
+        </div>
+
+        <div class="table-foot">
+          <span id="rangeText" class="text-sm text-muted tabular">-</span>
+          <div class="flex items-center gap-2">
+            <button id="prevPage" class="btn-ghost" aria-label="Previous page">Previous</button>
+            <span id="pageText" class="text-sm tabular px-1">1 / 1</span>
+            <button id="nextPage" class="btn-ghost" aria-label="Next page">Next</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-line">
+    <div class="wrap py-8 flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
+      <p>Market data by <a class="underline underline-offset-4 hover:text-ink" href="https://www.coingecko.com" target="_blank" rel="noopener">CoinGecko</a>. Sentiment by alternative.me.</p>
+      <p>CoinPulse is a class project. Nothing here is financial advice.</p>
+    </div>
+  </footer>
+
+  <!-- ============ COIN DETAIL MODAL ============ -->
+  <dialog id="coinModal" class="modal" aria-labelledby="mName">
+    <div class="modal-inner">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex items-center gap-3 min-w-0">
+          <img id="mImg" class="coin-img lg" alt="" width="44" height="44" />
+          <div class="min-w-0">
+            <h3 id="mName" class="text-xl font-extrabold truncate">-</h3>
+            <p class="text-sm text-muted"><span id="mSymbol"></span> &middot; Rank <span id="mRank" class="tabular"></span></p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="mStar" class="icon-btn" aria-pressed="false" aria-label="Add to watchlist" title="Add to watchlist">
+            <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>
+          </button>
+          <button id="mClose" class="icon-btn" aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-5 flex flex-wrap items-baseline gap-3">
+        <div id="mPrice" class="text-3xl sm:text-4xl font-extrabold tracking-tight tabular">-</div>
+        <span id="mChg" class="pill">-</span>
+      </div>
+
+      <div class="range-tabs mt-5" role="group" aria-label="Chart range">
+        <button data-range="1">24H</button>
+        <button data-range="7" class="is-active">7D</button>
+        <button data-range="30">30D</button>
+        <button data-range="90">90D</button>
+        <button data-range="365">1Y</button>
+      </div>
+
+      <div class="chart-box">
+        <canvas id="coinChart" aria-label="Price chart" role="img"></canvas>
+        <div id="chartState" class="chart-state hidden"></div>
+      </div>
+
+      <dl class="detail-grid" id="mStats"></dl>
+    </div>
+  </dialog>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
